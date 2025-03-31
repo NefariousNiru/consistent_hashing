@@ -47,26 +47,26 @@ public class RangeManager {
         return -1;
     }
 
-    public synchronized String getRangeForNode(int nodeId) {
+    public synchronized Range getRangeForNode(int nodeId) {
         if (nodeId > MAXRANGE) return null;
         if (!nodeIds.contains(nodeId)) return null;
         if (nodeId == 0) {
             if (nodeIds.size() == 1) {
-                return "0-" + MAXRANGE;
+                return new Range(0, MAXRANGE);
             }
             int last = nodeIds.last();
-            if (last == 0) return "0-" + MAXRANGE;
+            if (last == 0) return new Range(0, MAXRANGE);
 
             // Assume node 1023 joins. then last would be 1023 + 1 = 1024 and MAXRANGE + 1 = 1024
             // Therefore 1024 % 1024 is = 0 so node 0's range is 0-0 (only key 0)
             int start = (last + 1) % (MAXRANGE + 1);
-            return start + "-0";
+            return new Range(start, 0);
         } else {
             // For any non-zero node their range is the previousValue (lower) + 1 to the nodeId
             Integer lower = nodeIds.lower(nodeId);
             if (lower == null) lower = 0;     // This will not execute as bootstrap is always in set but doesn't hurt to add
             int start = lower + 1;
-            return start + "-" + nodeId;
+            return new Range(start, nodeId);
         }
     }
 
