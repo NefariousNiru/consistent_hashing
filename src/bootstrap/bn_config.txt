@@ -1,0 +1,37 @@
+0
+3768
+12 Cabbage
+26 Okra
+47 Cucumber
+62 Potato
+89 Apricot
+109 Carrot
+143 Broccoli
+152 Peas
+187 Fig
+226 Kiwi
+264 Grape
+288 Cherry
+325 Beetroot
+366 Onion
+410 Fennel
+434 Lemon
+500 Garlic
+502 Apple
+572 Cantaloupe
+616 Guava
+618 Lettuce
+740 Asparagus
+773 Limabeans
+800 Ginger
+826 Eggplant
+899 Mango
+900 Orange
+911 Strawberry
+939 Blueberry
+969 Pineapple
+992 Kale
+999 Spinach
+1005 Watermelon
+1016 Zucchini
+1023 Radish

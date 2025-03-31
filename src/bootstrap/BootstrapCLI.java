@@ -1,10 +1,14 @@
+package bootstrap;
+
+import util.Functions;
+import util.KeyValueStore;
 import java.util.Scanner;
 
-public class BootstrapNode {
+public class BootstrapCLI {
     private KeyValueStore keyValueStore;
 
-    public BootstrapNode() {
-        this.keyValueStore = new KeyValueStore();
+    public BootstrapCLI(KeyValueStore keyValueStore) {
+        this.keyValueStore = keyValueStore;
     }
 
     public void lookupKey(String[] tokens) {
@@ -88,7 +92,7 @@ public class BootstrapNode {
 
     public void startCLI() {
         Scanner scanner = new Scanner(System.in);
-        System.out.println("Bootstrap Node CLI started. Enter commands (type 'exit' to quit):");
+        System.out.println("Bootstrap Node CLI started. Enter commands lookup, insert, delete (type 'exit' to quit):");
 
         while(true) {
             System.out.print("> ");
@@ -103,10 +107,5 @@ public class BootstrapNode {
         }
 
         scanner.close();
-    }
-
-    public static void main(String[] args) {
-        BootstrapNode node = new BootstrapNode();
-        node.startCLI();
     }
 }
