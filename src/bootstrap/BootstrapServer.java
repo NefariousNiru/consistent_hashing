@@ -27,8 +27,7 @@ public class BootstrapServer {
             System.out.println("Bootstrap Server started on port " + port);
             while (running) {
                 Socket clientSocket = serverSocket.accept();
-                // Handle each client connection in a separate thread.
-                threadPool.execute(() -> handleClient(clientSocket));
+                threadPool.execute(() -> handleClient(clientSocket));   // Handle each client connection in a separate thread.
             }
         } catch (Exception e) {
             System.out.println("Error starting server: " + e.getMessage());

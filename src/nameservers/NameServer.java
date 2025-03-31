@@ -25,8 +25,7 @@ public class NameServer {
             return;
         }
         try (Socket socket = new Socket(bootstrapIP, bootstrapPort)) {
-            // Set a timeout of 5 seconds for reading response
-            socket.setSoTimeout(5000);
+            socket.setSoTimeout(5000); // Set a timeout of 5 seconds for reading response
             try (PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                  BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())))
             {
