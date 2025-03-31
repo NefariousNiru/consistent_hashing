@@ -1,9 +1,7 @@
 package bootstrap;
 
-import common.KeyTransferService;
 import util.KeyValueStore;
 import common.NameServerFunctions;
-import util.RangeManager;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
