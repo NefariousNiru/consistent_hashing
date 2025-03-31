@@ -1,6 +1,6 @@
 package bootstrap;
 
-import util.Functions;
+import util.ClientFunctions;
 import util.KeyValueStore;
 import java.util.Scanner;
 
@@ -74,7 +74,7 @@ public class BootstrapCLI {
 
         String command = tokens[0].toUpperCase();
         try {
-            switch (Functions.valueOf(command)) {
+            switch (ClientFunctions.valueOf(command)) {
                 case LOOKUP:
                     lookupKey(tokens);
                     break;

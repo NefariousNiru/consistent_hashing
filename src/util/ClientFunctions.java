@@ -1,5 +1,6 @@
 package util;
 
-public enum Functions {
+public enum ClientFunctions {
     LOOKUP, INSERT, DELETE
 }
+

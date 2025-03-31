@@ -1,11 +1,16 @@
 package bootstrap;
 
+import common.KeyTransferService;
 import util.KeyValueStore;
+import common.NameServerFunctions;
+import util.RangeManager;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -58,22 +63,28 @@ public class BootstrapServer {
     private void parseNodeMessage(PrintWriter out, String message) {
         System.out.println("Received message: " + message);
         String[] tokens = message.split("\\s+");
+        System.out.println(Arrays.toString(tokens));
         if (tokens.length >= 2) {
             String command = tokens[0].toUpperCase();
-            String nodeId = tokens[1];
-            if ("JOIN".equals(command)) {
-                System.out.println("Processing join for node " + nodeId);
-                // Here, additional logic would compute and assign key ranges.
-                out.println("JOIN OK");
-            } else if ("EXIT".equals(command)) {
-                System.out.println("Processing exit for node " + nodeId);
-                // Here, additional logic would handle key transfer and range updates.
-                out.println("EXIT OK");
-            } else {
-                out.println("UNKNOWN COMMAND");
+            int nodeId = Integer.parseInt(tokens[1]);
+            try {
+                switch(NameServerFunctions.valueOf(command)) {
+                    case ENTER:
+                        System.out.println("Processing entry for node " + nodeId);
+                        // Additional logic for ENTER (e.g., assign key ranges)
+                        out.println("ENTER OK");
+                        break;
+                    case EXIT:
+                        System.out.println("Processing exit for node " + nodeId);
+                        // Additional logic for EXIT (e.g., handle key transfer and range updates)
+                        out.println("EXIT OK");
+                        break;
+                }
+            } catch (IllegalArgumentException e) {
+                out.println("INVALID COMMAND");
             }
         } else {
-            out.println("INVALID FORMAT");
+            out.println("Usage command <id>. Commands supported ENTER, EXIT");
         }
     }
 }

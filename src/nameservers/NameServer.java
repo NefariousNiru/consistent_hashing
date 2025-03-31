@@ -5,6 +5,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Scanner;
 
+import static common.NameServerFunctions.ENTER;
+import static common.NameServerFunctions.EXIT;
+
 public class NameServer {
     private int id;
     private int port;
@@ -29,7 +32,7 @@ public class NameServer {
             try (PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                  BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())))
             {
-                String joinMessage = "JOIN " + id;
+                String joinMessage = ENTER + " " + id;
                 out.println(joinMessage);
                 System.out.println("Sent join request: " + joinMessage);
 
@@ -57,7 +60,7 @@ public class NameServer {
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())))
             {
-                String exitMessage = "EXIT " + id;
+                String exitMessage = EXIT + " " + id;
                 out.println(exitMessage);
                 System.out.println("Sent exit request: " + exitMessage);
 
