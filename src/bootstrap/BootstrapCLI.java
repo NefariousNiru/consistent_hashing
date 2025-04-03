@@ -1,7 +1,7 @@
 package bootstrap;
 
-import util.ClientFunctions;
-import util.KeyValueStore;
+import bootstrapUtil.ClientFunctions;
+import common.KeyValueStore;
 import java.util.Scanner;
 
 public class BootstrapCLI {
@@ -84,6 +84,10 @@ public class BootstrapCLI {
                 case DELETE:
                     deleteKey(tokens);
                     break;
+                case PRINT:
+                    keyValueStore.print_keys();
+                    break;
+                default: break;
             }
         } catch (IllegalArgumentException e) {
             System.out.println("Unknown command. Available commands: insert, lookup, delete, exit.");

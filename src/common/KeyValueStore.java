@@ -1,4 +1,4 @@
-package util;
+package common;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -28,5 +28,11 @@ public class KeyValueStore {
             return 0;
         }
         return -1;
+    }
+
+    public synchronized void print_keys() {
+        for (Map.Entry<Integer, String> entry : keyValueStore.entrySet()) {
+            System.out.println("Key: " + entry.getKey() + ", Value: " + entry.getValue());
+        }
     }
 }

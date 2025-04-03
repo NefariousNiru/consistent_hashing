@@ -1,12 +1,18 @@
 package nameservers;
 
+import common.Range;
+import common.KeyTransferService;
+import common.KeyValueStore;
+import common.NameServerFunctions;
+import common.NodeInfo;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Scanner;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-import static common.NameServerFunctions.ENTER;
-import static common.NameServerFunctions.EXIT;
+import static common.NameServerFunctions.*;
 
 public class NameServer {
     private int id;
@@ -14,140 +20,149 @@ public class NameServer {
     private String bootstrapIP;
     private int bootstrapPort;
     private boolean isJoined = false;
+    private KeyTransferService keyTransferService;
+    private KeyValueStore keyValueStore;
+    private NodeInfo nodeInfo;
 
-    public NameServer(int id, int port, String bootstrapIP, int bootstrapPort) {
+    public NameServer(int id, int port, String bootstrapIP, int bootstrapPort,
+                      KeyValueStore keyValueStore, KeyTransferService keyTransferService) {
         this.id = id;
         this.port = port;
         this.bootstrapIP = bootstrapIP;
         this.bootstrapPort = bootstrapPort;
-    }
-
-    public void enterNetwork() {
-        if (isJoined) {
-            System.out.println("Already joined the network.");
-            return;
-        }
-        try (Socket socket = new Socket(bootstrapIP, bootstrapPort)) {
-            socket.setSoTimeout(5000); // Set a timeout of 5 seconds for reading response
-            try (PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())))
-            {
-                String joinMessage = ENTER + " " + id;
-                out.println(joinMessage);
-                System.out.println("Sent join request: " + joinMessage);
-
-                String response = in.readLine();
-                if (response != null) {
-                    System.out.println("Bootstrap response: " + response);
-                    isJoined = true;
-                } else {
-                    System.out.println("No response from bootstrap node.");
-                }
-            }
-        } catch (java.net.SocketTimeoutException ste) {
-            System.out.println("Timed out waiting for bootstrap response.");
-        } catch (Exception e) {
-            System.out.println("Error joining network: " + e.getMessage());
-        }
-    }
-
-    public void exitNetwork() {
-        if (!isJoined) {
-            System.out.println("Not currently joined the network.");
-            return;
-        }
-        try(Socket socket = new Socket(bootstrapIP, bootstrapPort);
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())))
-            {
-                String exitMessage = EXIT + " " + id;
-                out.println(exitMessage);
-                System.out.println("Sent exit request: " + exitMessage);
-
-                String response = in.readLine();
-                System.out.println("Bootstrap response: " + response);
-                // Assume a positive response means the node has exited successfully.
-                isJoined = false;
-            } catch(Exception e) {
-                System.out.println("Error exiting network: " + e.getMessage());
-            }
-    }
-
-    public void startCLI() {
-        Thread cliThread = new Thread(() ->{
-            Scanner scanner = new Scanner(System.in);
-            System.out.println("NameServer CLI started. Available commands: enter, exit");
-            while (true) {
-                System.out.print("NS> ");
-                String input = scanner.nextLine().trim();
-                if (input.equalsIgnoreCase("enter")) {
-                    enterNetwork();
-                } else if (input.equalsIgnoreCase("exit")) {
-                    exitNetwork();
-                    System.out.println("Exiting NameServer CLI.");
-                    System.exit(0);
-                    break;
-                } else {
-                    System.out.println("Unknown command. Available commands: enter, exit");
-                }
-            }
-            scanner.close();
-        });
-        cliThread.start();
+        this.keyValueStore = keyValueStore;
+        this.keyTransferService = keyTransferService;
+        nodeInfo = new NodeInfo(id, "self", port);
     }
 
     public void startServer() {
-        Thread serverThread = new Thread(() -> {
-            try (ServerSocket serverSocket = new ServerSocket(port)) {
-                System.out.println("NameServer listening on port " + port);
-                while (true) {
-                    Socket clientSocket = serverSocket.accept();
-                    System.out.println("Received connection from " + clientSocket.getInetAddress());
-                    // For now, simply close the connection after accepting.
-                    clientSocket.close();
-                }
-            } catch (IOException e) {
-                System.out.println("Error in NameServer server: " + e.getMessage());
+        ExecutorService threadPool = Executors.newCachedThreadPool();
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("NameServer listening on port " + port);
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("Received connection from " + clientSocket.getInetAddress());
+                threadPool.execute(() -> handleIncomingRequest(clientSocket));  // Spawn a thread in a pool
             }
-        });
-        serverThread.start();
+        } catch (IOException e) {
+            System.out.println("Error in NameServer server: " + e.getMessage());
+            System.exit(-1);
+        }
     }
 
-    private static void runNameServer(String idLine, String portLine, String bootstrapLine) {
-        int id = Integer.parseInt(idLine.trim());
-        int port = Integer.parseInt(portLine.trim());
-        String[] bootstrapInfo = bootstrapLine.trim().split("\\s+");
-        String bootstrapIP = bootstrapInfo[0];
-        int bootstrapPort = Integer.parseInt(bootstrapInfo[1]);
+    private void handleIncomingRequest(Socket clientSocket) {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
+            String message = in.readLine();
+            if (message != null) {
+                String[] tokens = message.split("\\s+");  // SEND_KEYS + " " + id + " " + port;
+                String command = tokens[0].toUpperCase();
+                int nodeId = Integer.parseInt(tokens[1]);
+                int port = Integer.parseInt(tokens[2]);
+                String ip = clientSocket.getInetAddress().toString();
 
-        // Create the NameServer instance with configuration values.
-        NameServer ns = new NameServer(id, port, bootstrapIP, bootstrapPort);
+                switch (NameServerFunctions.valueOf(command)) {
+                    case SEND_KEYS:
+                        System.out.println("Processing SEND_KEYS for node " + nodeId);
+                        Range range = sendKeys(in, out, ip, port, nodeId);
 
-        // Start the server to accept incoming connections.
-        ns.startServer();
+                        message = in.readLine();
+                        if (message.equals("RECEIVED_OK")){
+                            deleteKeys(range);
+                        }
 
-        // Start the CLI for node-specific operations.
-        ns.startCLI();
+                        nodeInfo.setPredecessor(new NodeInfo(nodeId, ip, port));    // set new predecessor
+                        break;
+                    default: break;
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            System.out.println("Invalid Request from incoming request " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("Error handling incoming request: " + e.getMessage());
+        } finally {
+            try { clientSocket.close(); } catch (Exception e) { }
+        }
     }
 
-    public static void main(String[] args) {
-        if (args.length != 1) {
-            System.out.println("Usage: java NameServer.java <nsConfigFile>");
+    private Range sendKeys(BufferedReader in, PrintWriter out, String ip, int port, int endKey) {
+        // Asked by other servers to send this server's keys when joined.
+        Range range = getSendRange(endKey);
+        System.out.println("Sending keys in range: " + range.getStart() + " to " + endKey);
+        keyTransferService.sendKeyValueRange(out, range);
+        return range;
+    }
+
+    public void receiveKeys() {
+        // Ask server to send keys so this name server receives them.
+        NodeInfo successor = nodeInfo.getSuccessor();
+        if (successor == null) {
+            System.out.println("No successor available for key receiving.");
             return;
         }
 
-        String configFile = args[0];
-        try (BufferedReader br = new BufferedReader(new FileReader(configFile))) {
-            // Read configuration parameters from the file.
-            String idLine = br.readLine();
-            String portLine = br.readLine();
-            String bootstrapLine = br.readLine();
+        System.out.println("Initiating key retrieval from successor: " + successor);
+        try (Socket socket = new Socket(successor.getIp(), successor.getPort());
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())))
+        {
+            String transferRequest = SEND_KEYS + " " + id + " " + port;
+            out.println(transferRequest);
+            System.out.println("Sent key retrieval request: " + transferRequest);
 
-            runNameServer(idLine, portLine, bootstrapLine);
-        } catch (IOException e) {
-            System.out.println("Error reading config file: " + e.getMessage());
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid configuration format: " + e.getMessage());
+            String received = in.readLine();
+            String[] lines = received.split("%0A");
+            for (String line : lines) {
+                if (line.trim().isEmpty()) continue;
+                if (line.equals("FIN")) break;  // Receive key-value pairs until we encounter a termination marker ("FIN").
+
+                String[] parts = line.split(":");
+                if (parts.length < 2) {
+                    System.out.println("Invalid key-value pair: " + line);
+                    continue;
+                }
+
+                try {
+                    int key = Integer.parseInt(parts[0].trim());
+                    String value = parts[1].trim();
+                    keyValueStore.insert(key, value);       // Insert the key-value pair into the local store
+                    System.out.println("Received key " + key + " with value " + value);
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid key format in line: " + line);
+                }
+            }
+            out.println("RECEIVED_OK");
+        } catch(Exception e) {
+            System.out.println("Error during key reception: " + e.getMessage());
         }
+    }
+
+    private void deleteKeys(Range range) {
+        for (int key = range.getStart(); key <= range.getEnd(); key ++)
+            keyValueStore.delete(key);
+    }
+
+    public NodeInfo getNodeInfo() {
+        return nodeInfo;
+    }
+
+    public void markAsJoined() {
+        isJoined = true;
+    }
+
+    public void markAsJoinedFalse() {
+        isJoined = false;
+    }
+
+    public boolean isJoined() {
+        return isJoined;
+    }
+
+    private Range getSendRange(int endKey) {
+        NodeInfo predecessor = nodeInfo.getPredecessor();
+        if (predecessor != null) {
+            return new Range(predecessor.getId() + 1, endKey);
+        }
+        return new Range(0, endKey);
     }
 }

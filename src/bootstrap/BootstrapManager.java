@@ -1,6 +1,9 @@
 package bootstrap;
 
-import util.KeyValueStore;
+import bootstrapUtil.NodeManager;
+import common.KeyTransferService;
+import common.KeyValueStore;
+import bootstrapUtil.RangeManager;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -29,11 +32,15 @@ public class BootstrapManager {
             }
             System.out.println("Inserted Initial Key-Values");
 
-            BootstrapServer server = new BootstrapServer(serverPort, keyValueStore);
+            RangeManager rangeManager = new RangeManager();
+            KeyTransferService keyTransferService = new KeyTransferService(keyValueStore);
+            NodeManager nodeManager = new NodeManager(serverPort);
+            BootstrapServer server = new BootstrapServer(serverPort, keyValueStore,
+                    rangeManager, keyTransferService, nodeManager);
             new Thread(server::start).start();              // Start server in a new thread
 
             BootstrapCLI clientCLI = new BootstrapCLI(keyValueStore);
-            clientCLI.startCLI();                           // Start the Client CLI
+            new Thread(clientCLI::startCLI).start();        // Start the Client CLI
 
         } catch (IOException e) {
             System.out.println("Error reading config file: " + e.getMessage());

@@ -1,4 +1,6 @@
-package util;
+package bootstrapUtil;
+
+import common.Range;
 
 import java.util.TreeSet;
 
@@ -11,40 +13,36 @@ public class RangeManager {
         nodeIds.add(0); // Add the bootstrap node
     }
 
-    public synchronized int addNode(int nodeId) {
+    public synchronized Response addNode(int nodeId) {
         if (nodeId < 0 || nodeId > MAXRANGE) {
-            System.out.println("Invalid node ID. Must be between 0 and " + MAXRANGE);
-            return -1;
+            return new Response(-1, "Invalid Node ID. Must be between 0 and " + MAXRANGE);
         }
 
         if (nodeIds.contains(nodeId)) {
-            System.out.println("Node " + nodeId + " already exists.");
-            return -1;
+            return new Response(-1, "Node " + nodeId + " already exists.");
         }
+
         nodeIds.add(nodeId);
-        System.out.println("Node " + nodeId + " added.");
-        return 0;
+        printRanges();
+        return new Response(0, "Node " + nodeId + " added.");
     }
 
-    public synchronized int removeNode(int nodeId) {
+    public synchronized Response removeNode(int nodeId) {
         if (nodeId < 0 || nodeId > MAXRANGE) {
-            System.out.println("Invalid node ID. Must be between 0 and " + MAXRANGE);
-            return -1;
+            return new Response(-1, "Invalid node ID. Must be between 0 and " + MAXRANGE);
         }
 
         if (nodeId == 0) {
-            System.out.println("Bootstrap node cannot be removed.");
-            return -1;
+            return new Response(-1, "Bootstrap node cannot be removed.");
         }
 
         if (nodeIds.contains(nodeId)) {
             nodeIds.remove(nodeId);
-            System.out.println("Node " + nodeId + " removed.");
-            return 0;
+            printRanges();
+            return new Response(0, "Node " + nodeId + " removed.");
         }
 
-        System.out.println("Node " + nodeId + " does not exist.");
-        return -1;
+        return new Response(-1, "Node " + nodeId + " does not exist.");
     }
 
     public synchronized Range getRangeForNode(int nodeId) {
@@ -73,7 +71,8 @@ public class RangeManager {
     public synchronized void printRanges() {
         System.out.println("Current Node Ranges:");
         for (Integer id : nodeIds) {
-            System.out.println("Node " + id + " range: " + getRangeForNode(id));
+            Range range = getRangeForNode(id);
+            System.out.println("Node " + id + " range: " + range.getStart() + " - " + range.getEnd());
         }
     }
 }

@@ -1,4 +1,4 @@
-package util;
+package common;
 
 public class Range {
     private int start;
