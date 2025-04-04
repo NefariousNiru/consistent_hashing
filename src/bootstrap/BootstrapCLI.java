@@ -1,14 +1,20 @@
 package bootstrap;
 
 import bootstrapUtil.ClientFunctions;
+import bootstrapUtil.NodeManager;
+import bootstrapUtil.RangeManager;
 import common.KeyValueStore;
 import java.util.Scanner;
 
 public class BootstrapCLI {
+    private final RangeManager rangeManager;
     private KeyValueStore keyValueStore;
+    private NodeManager nodeManager;
 
-    public BootstrapCLI(KeyValueStore keyValueStore) {
+    public BootstrapCLI(KeyValueStore keyValueStore, RangeManager rangeManager, NodeManager nodeManager) {
         this.keyValueStore = keyValueStore;
+        this.rangeManager = rangeManager;
+        this.nodeManager = nodeManager;
     }
 
     public void lookupKey(String[] tokens) {
@@ -86,6 +92,12 @@ public class BootstrapCLI {
                     break;
                 case PRINT:
                     keyValueStore.print_keys();
+                    break;
+                case RANGE:
+                    rangeManager.printRanges();
+                    break;
+                case NODES:
+                    nodeManager.printNodes();
                     break;
                 default: break;
             }
