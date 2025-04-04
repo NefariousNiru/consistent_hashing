@@ -94,7 +94,12 @@ public class NameServer {
                         ); // set new predecessor
                         break;
                     case UPDATE_SUCCESSOR:
-                        nodeInfo.setSuccessor(new NodeInfo(clientNodeId, clientIp, clientPort));      // set new successor
+                        if (tokens.length == 3)
+                            nodeInfo.setSuccessor(new NodeInfo(clientNodeId, clientIp, clientPort));      // set new successor
+                        else {
+                            String successorIp = tokens[3];
+                            nodeInfo.setSuccessor(new NodeInfo(clientNodeId, successorIp, clientPort));
+                        }
                         break;
                     default: break;
                 }
@@ -231,13 +236,12 @@ public class NameServer {
     }
 
     /**
-     * Ask predecessor to set this as successor
+     * Ask predecessor to set 'this node' as successor
      * @param predecessorNode: The predecessor Node of class NodeInfo
      */
     public void announceEntryToPredecessor(NodeInfo predecessorNode) {
         try (Socket socket = new Socket(predecessorNode.getIp(), predecessorNode.getPort());
-             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())))
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true))
         {
             System.out.println("Announcing entry to predecessor node");
             String request = UPDATE_SUCCESSOR + " " + id + " " + port;
@@ -248,9 +252,17 @@ public class NameServer {
         }
     }
 
-    public void announceExit() {
-        // Send pred and ask pred to set self as succ
-        // Send succ and ask succ to set self as pred
+    public void announceExitToPredecessor(NodeInfo predecessorNode, NodeInfo successorNode) {
+        try (Socket socket = new Socket(predecessorNode.getIp(), predecessorNode.getPort());
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true))
+        {
+            System.out.println("Announcing exit to predecessor node");
+            String request = UPDATE_SUCCESSOR + " " + successorNode.getId() + " " + successorNode.getPort() + " " + successorNode.getIp() ;
+            out.println(request);
+            System.out.println("Announce success");
+        } catch(Exception e) {
+            System.out.println("Error during announcing entry to predecessor key: " + e.getMessage());
+        }
     }
 
     public NodeInfo getNodeInfo() {
@@ -261,9 +273,6 @@ public class NameServer {
         isJoined = true;
     }
 
-    public void markAsJoinedFalse() {
-        isJoined = false;
-    }
 
     public boolean isJoined() {
         return isJoined;

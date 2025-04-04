@@ -65,7 +65,6 @@ public class NameServerCLI {
                 NodeInfo nodeInfo = nameServer.getNodeInfo();
                 nodeInfo.setPredecessor(neighbors[0]);
                 nodeInfo.setSuccessor(neighbors[1]);
-                System.out.println("My Node" + nodeInfo);
                 nameServer.markAsJoined();
             }
         } catch (java.net.SocketTimeoutException ste) {
@@ -125,7 +124,10 @@ public class NameServerCLI {
                     case EXIT:
                         if (exitNetwork()){
                             nameServer.sendKeysOnExit();
-                            nameServer.announceExit();
+                            nameServer.announceExitToPredecessor(
+                                    nameServer.getNodeInfo().getPredecessor(),
+                                    nameServer.getNodeInfo().getSuccessor()
+                            );
                             System.out.println("Exiting NameServer CLI.");
                             System.exit(0);
                         }
