@@ -95,8 +95,10 @@ public class NameServer {
                         break;
                     case UPDATE_SUCCESSOR:
                         if (tokens.length == 3)
+                            // When node enters and sends a update successor request
                             nodeInfo.setSuccessor(new NodeInfo(clientNodeId, clientIp, clientPort));      // set new successor
                         else {
+                            // When a node exists it sends its successors IP which becomes 'this' successor IP
                             String successorIp = tokens[3];
                             nodeInfo.setSuccessor(new NodeInfo(clientNodeId, successorIp, clientPort));
                         }
