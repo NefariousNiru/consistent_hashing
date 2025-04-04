@@ -127,6 +127,24 @@ public class BootstrapServer {
                         }
                         break;
                     case RECEIVE_KEYS:
+                        System.out.println("Receiving keys from predecessor node");
+                        if (tokens.length < 6) {
+                            System.out.println("Invalid Request");
+                            break;
+                        }
+                        out.println("SEND_OK");
+
+                        int predId = Integer.parseInt(tokens[3]);
+                        String predIp = tokens[4];
+                        int predPort = Integer.parseInt(tokens[5]);
+
+                        receiveKeys(in);
+                        out.println("RECEIVED_OK");
+
+                        NodeInfo bootstrapNode = nodeManger.getNodeById(0);
+                        bootstrapNode.setPredecessor(new NodeInfo(predId, predIp, predPort));
+                        break;
+                    case UPDATE_NEIGHBORS:
                         break;
                     default: break;
                 }
@@ -151,15 +169,32 @@ public class BootstrapServer {
             keyValueStore.delete(key);
     }
 
-    private void receiveKeys(PrintWriter out, BufferedReader in, int nodeId) throws IOException {
-        out.println("READY_TO_RECEIVE");
-        String keyVals;
-        while ((keyVals = in.readLine()) != null) {
-            if (keyVals.equals("FIN")) {
-                out.println("EXIT OK");
-                break;
+    private void receiveKeys(BufferedReader in) {
+        try {
+            String received = in.readLine();
+            String[] lines = received.split("%0A");
+            for (String line : lines) {
+                if (line.trim().isEmpty()) continue;
+                if (line.equals("FIN"))
+                    break;  // Receive key-value pairs until we encounter a termination marker ("FIN").
+
+                String[] parts = line.split(":");
+                if (parts.length < 2) {
+                    System.out.println("Invalid key-value pair: " + line);
+                    continue;
+                }
+
+                try {
+                    int key = Integer.parseInt(parts[0].trim());
+                    String value = parts[1].trim();
+                    keyValueStore.insert(key, value);       // Insert the key-value pair into the local store
+                    System.out.println("Received key " + key + " with value " + value);
+                } catch (NumberFormatException e) {
+                    System.out.println("Invalid key format in line: " + line);
+                }
             }
-            System.out.println(keyVals); // logic to move keys implemented in key transfer service
+        } catch (IOException e) {
+            System.out.println("Error receiving keys due to I/O Exception: " + e.getMessage());
         }
     }
 }

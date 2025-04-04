@@ -68,6 +68,15 @@ public class NodeManager {
         }
     }
 
+    public NodeInfo getNodeById(int nodeId) {
+        for (NodeInfo node : nodes) {
+            if (node.getId() == nodeId) {
+                return node;
+            }
+        }
+        return null;
+    }
+
     public synchronized void printNodes() {
         System.out.println("Current Node Pointers:");
         for (NodeInfo node : nodes) {

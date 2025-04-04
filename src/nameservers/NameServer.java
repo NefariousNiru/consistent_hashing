@@ -89,9 +89,7 @@ public class NameServer {
                         out.println("RECEIVED_OK");
                         nodeInfo.setPredecessor(new NodeInfo(predId, predIp, predPort));
                         break;
-                    case UPDATE_PREDECESSOR:
-                        break;
-                    case UPDATE_SUCCESSOR:
+                    case UPDATE_NEIGHBORS:
                         break;
                     default: break;
                 }
