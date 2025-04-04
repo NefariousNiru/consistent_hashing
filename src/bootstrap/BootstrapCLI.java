@@ -4,17 +4,46 @@ import bootstrapUtil.ClientFunctions;
 import bootstrapUtil.NodeManager;
 import bootstrapUtil.RangeManager;
 import common.KeyValueStore;
+import common.NodeInfo;
+import common.Range;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.Scanner;
 
 public class BootstrapCLI {
     private final RangeManager rangeManager;
     private KeyValueStore keyValueStore;
     private NodeManager nodeManager;
+    private final int port;
 
-    public BootstrapCLI(KeyValueStore keyValueStore, RangeManager rangeManager, NodeManager nodeManager) {
+    public BootstrapCLI(KeyValueStore keyValueStore, RangeManager rangeManager,
+                        NodeManager nodeManager, int port) {
         this.keyValueStore = keyValueStore;
         this.rangeManager = rangeManager;
         this.nodeManager = nodeManager;
+        this.port = port;
+    }
+
+    private String forwardToSuccessor(ClientFunctions clientFunctions, String message) {
+        NodeInfo successor = nodeManager.getNodeById(0).getSuccessor();
+        if (successor == null) {
+            return null;
+        }
+        try (Socket socket = new Socket(successor.getIp(), successor.getPort());
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())))
+        {
+            String request = clientFunctions + " " + "0" + " " + port + " " + message;
+            out.println(request);
+            return in.readLine();
+        } catch (IOException e) {
+            return "Error forwarding lookup: " + e.getMessage();
+        }
     }
 
     public void lookupKey(String[] tokens) {
@@ -27,7 +56,10 @@ public class BootstrapCLI {
                 if(value != null) {
                     System.out.println("Value for key " + key + " is: " + value);
                 } else {
-                    System.out.println("Key " + key + " not found.");
+                    value = forwardToSuccessor(ClientFunctions.LOOKUP, Integer.toString(key)); // Forward request to successor
+                    if (value == null || value.equals("null"))
+                        System.out.println("Key " + key + " not found.");
+                    else System.out.println("Value for key " + key + " is: " + value);
                 }
             } catch (NumberFormatException e) {
                 System.out.println("Invalid key format. Key must be an integer.");
@@ -42,11 +74,18 @@ public class BootstrapCLI {
             try {
                 int key = Integer.parseInt(tokens[1]);
                 String value = tokens[2];
-                int result = keyValueStore.insert(key, value);
-                if(result == 0) {
-                    System.out.println("Insertion successful for key " + key);
-                } else {
-                    System.out.println("Key " + key + " already exists.");
+                Range range = rangeManager.getRangeForNode(0);
+                if (range.getStart() <= key && key <= range.getEnd()) {
+                    int result = keyValueStore.insert(key, value);
+                    if(result == 0) {
+                        System.out.println("Insertion successful for key " + key);
+                    } else {
+                        System.out.println("Key " + key + " already exists.");
+                    }
+                }
+                else {
+                    String response = forwardToSuccessor(ClientFunctions.INSERT, key + " " + value);
+                    System.out.println(response);
                 }
             } catch (NumberFormatException e) {
                 System.out.println("Invalid key format. Key must be an integer.");

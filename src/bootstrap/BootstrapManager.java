@@ -39,7 +39,7 @@ public class BootstrapManager {
                     rangeManager, keyTransferService, nodeManager);
             new Thread(server::start).start();              // Start server in a new thread
 
-            BootstrapCLI clientCLI = new BootstrapCLI(keyValueStore, rangeManager, nodeManager);
+            BootstrapCLI clientCLI = new BootstrapCLI(keyValueStore, rangeManager, nodeManager, serverPort);
             new Thread(clientCLI::startCLI).start();        // Start the Client CLI
 
         } catch (IOException e) {

@@ -55,7 +55,7 @@ public class NameServer {
              PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
             String message = in.readLine();
             if (message != null) {
-                // SEND_KEYS/RECEIVE_KEYS/UPDATE_SUCCESSOR + " " + id + " " + port;
+                // NameServerFunctionsEnum + " " + id + " " + port;
                 String[] tokens = message.split("\\s+");
                 String command = tokens[0].toUpperCase();
                 int clientNodeId = Integer.parseInt(tokens[1]);
@@ -102,6 +102,23 @@ public class NameServer {
                             String successorIp = tokens[3];
                             nodeInfo.setSuccessor(new NodeInfo(clientNodeId, successorIp, clientPort));
                         }
+                        break;
+                    case LOOKUP:
+                        int key = Integer.parseInt(tokens[3]);
+                        System.out.println("Received Lookup request for key: " + key);
+                        String value  = keyValueStore.lookup(key);      // check if this name server has it
+                        if (value != null) {
+                            System.out.println("Key " + key + " found");
+                            out.println(value);                         // If found return key
+                            break;
+                        }
+                        System.out.println("Key " + key + " not found -> forwarding");
+                        value = forwardToSuccessor(LOOKUP, Integer.toString(key));
+                        out.println(value);                             // return any value successors found
+                        break;
+                    case INSERT:
+                        break;
+                    case DELETE:
                         break;
                     default: break;
                 }
@@ -264,6 +281,24 @@ public class NameServer {
             System.out.println("Announce success");
         } catch(Exception e) {
             System.out.println("Error during announcing entry to predecessor key: " + e.getMessage());
+        }
+    }
+
+    private String forwardToSuccessor(NameServerFunctions nsf, String message) {
+        NodeInfo successor = nodeInfo.getSuccessor();
+        if (successor == null || successor.getId() == 0) {
+            System.out.println("Forwarding aborted: No successor present or successor is Bootstrap Node");
+            return null;
+        }
+        try (Socket socket = new Socket(successor.getIp(), successor.getPort());
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())))
+        {
+            String request = nsf + " " + id + " " + port + " " + message;
+            out.println(request);
+            return in.readLine();
+        } catch (IOException e) {
+            return "Error forwarding lookup: " + e.getMessage();
         }
     }
 
