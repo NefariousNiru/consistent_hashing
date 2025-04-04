@@ -95,28 +95,6 @@ public class NameServerCLI {
                 String response = in.readLine();
                 System.out.println("Bootstrap response: " + response);
                 return response.equals(EXIT + " OK");
-//                if (!response.equals("READY_TO_RECEIVE")) {
-//                    System.out.println("Server cannot receive keys. Graceful shutdown aborted.");
-//                    return false;
-//                }
-
-//                int i = 0;
-//                while (i < 5) {
-//                    // transmit keys
-//                    out.println("Key:Value");
-//                    i += 1;
-//                }
-//                out.println("FIN");
-//
-//                response = in.readLine();
-//                System.out.println("Bootstrap response: " + response);
-//                if (response.equals("EXIT OK")) {
-//                    nameServer.markAsJoinedFalse();
-//                    return true;
-//                }
-//
-//                System.out.println("Server cannot receive keys. Graceful shutdown aborted.");
-//                return false;
             } catch(Exception e) {
                 System.out.println("Error exiting network: " + e.getMessage());
                 return false;
@@ -139,12 +117,15 @@ public class NameServerCLI {
             try {
                 switch (NameServerFunctions.valueOf(input)) {
                     case ENTER:
-                        if(enterNetwork())
+                        if(enterNetwork()){
                             nameServer.receiveKeysOnEntry();
+                            nameServer.announceEntryToPredecessor(nameServer.getNodeInfo().getPredecessor());
+                        }
                         break;
                     case EXIT:
                         if (exitNetwork()){
                             nameServer.sendKeysOnExit();
+                            nameServer.announceExit();
                             System.out.println("Exiting NameServer CLI.");
                             System.exit(0);
                         }

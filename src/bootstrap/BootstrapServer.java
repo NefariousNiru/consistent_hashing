@@ -75,23 +75,23 @@ public class BootstrapServer {
 
             Response response;
             String command = tokens[0].toUpperCase();
-            int nodeId = Integer.parseInt(tokens[1]);
-            int nsPort = Integer.parseInt(tokens[2]);
+            int clientNodeId = Integer.parseInt(tokens[1]);
+            int clientPort = Integer.parseInt(tokens[2]);
             String clientIP = clientSocket.getInetAddress().getHostAddress();
-            NodeInfo requestNode = new NodeInfo(nodeId, clientIP, nsPort);
+            NodeInfo requestNode = new NodeInfo(clientNodeId, clientIP, clientPort);
             NodeInfo predNode;
             NodeInfo succNode;
             try {
                 switch(NameServerFunctions.valueOf(command)) {
                     case ENTER:
-                        System.out.println("Processing entry of Node " + nodeId);
+                        System.out.println("Processing entry of Node " + clientNodeId);
 
                         if ((response = nodeManger.addNode(requestNode)).getCode() == -1) {
                             out.println(response.getMessage());
                             break;
                         }
 
-                        if ((response = rangeManager.addNode(nodeId)).getCode() == -1){
+                        if ((response = rangeManager.addNode(clientNodeId)).getCode() == -1){
                             nodeManger.removeNode(requestNode);
                             out.println(response.getMessage());
                             break;
@@ -103,14 +103,14 @@ public class BootstrapServer {
                         out.println("ENTER OK" + " Predecessor: " + predNode.toString() + " Successor: " + succNode.toString());
                         break;
                     case EXIT:
-                        System.out.println("Processing exit for node " + nodeId);
+                        System.out.println("Processing exit for node " + clientNodeId);
 
                         if ((response = nodeManger.removeNode(requestNode)).getCode() == -1) {
                             out.println(response.getMessage());
                             break;
                         }
 
-                        if ((response = rangeManager.removeNode(nodeId)).getCode() == -1){
+                        if ((response = rangeManager.removeNode(clientNodeId)).getCode() == -1){
                             nodeManger.addNode(requestNode);
                             out.println(response.getMessage());
                             break;
@@ -118,8 +118,8 @@ public class BootstrapServer {
                         out.println(EXIT + " OK");
                         break;
                     case SEND_KEYS:
-                        System.out.println("Processing SEND_KEYS for node " + nodeId);
-                        Range range = sendKeys(out, nodeId);
+                        System.out.println("Processing SEND_KEYS for node " + clientNodeId);
+                        Range range = sendKeys(out, clientNodeId);
 
                         message = in.readLine();
                         if (message.equals("RECEIVED_OK")){
@@ -144,7 +144,7 @@ public class BootstrapServer {
                         NodeInfo bootstrapNode = nodeManger.getNodeById(0);
                         bootstrapNode.setPredecessor(new NodeInfo(predId, predIp, predPort));
                         break;
-                    case UPDATE_NEIGHBORS:
+                    case UPDATE_SUCCESSOR:
                         break;
                     default: break;
                 }

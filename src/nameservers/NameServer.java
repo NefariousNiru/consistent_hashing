@@ -41,7 +41,7 @@ public class NameServer {
             System.out.println("NameServer listening on port " + port);
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("Received connection from " + clientSocket.getInetAddress());
+                System.out.println("Received connection from " + clientSocket.getInetAddress().getHostAddress());
                 threadPool.execute(() -> handleIncomingRequest(clientSocket));  // Spawn a thread in a pool
             }
         } catch (IOException e) {
@@ -55,23 +55,24 @@ public class NameServer {
              PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
             String message = in.readLine();
             if (message != null) {
-                String[] tokens = message.split("\\s+");  // SEND_KEYS + " " + id + " " + port;
+                // SEND_KEYS/RECEIVE_KEYS/UPDATE_SUCCESSOR + " " + id + " " + port;
+                String[] tokens = message.split("\\s+");
                 String command = tokens[0].toUpperCase();
-                int nodeId = Integer.parseInt(tokens[1]);
-                int port = Integer.parseInt(tokens[2]);
-                String ip = clientSocket.getInetAddress().toString();
+                int clientNodeId = Integer.parseInt(tokens[1]);
+                int clientPort = Integer.parseInt(tokens[2]);
+                String clientIp = clientSocket.getInetAddress().getHostAddress();
 
                 switch (NameServerFunctions.valueOf(command)) {
                     case SEND_KEYS:
-                        System.out.println("Processing SEND_KEYS for node " + nodeId);
-                        Range range = sendKeys(out, nodeId);
+                        System.out.println("Processing SEND_KEYS for node " + clientNodeId);
+                        Range range = sendKeys(out, clientNodeId);
 
                         message = in.readLine();
                         if (message.equals("RECEIVED_OK")){
                             deleteKeys(range);
                         }
 
-                        nodeInfo.setPredecessor(new NodeInfo(nodeId, ip, port));    // set new predecessor
+                        nodeInfo.setPredecessor(new NodeInfo(clientNodeId, clientIp, clientPort));    // set new predecessor
                         break;
                     case RECEIVE_KEYS:
                         System.out.println("Receiving keys from predecessor node");
@@ -81,15 +82,19 @@ public class NameServer {
                         }
                         out.println("SEND_OK");
 
-                        int predId = Integer.parseInt(tokens[3]);
-                        String predIp = tokens[4];
-                        int predPort = Integer.parseInt(tokens[5]);
+                        int clientPredecessorId = Integer.parseInt(tokens[3]);
+                        String clientPredecessorIp = tokens[4];
+                        int clientPredecessorPort = Integer.parseInt(tokens[5]);
 
                         receiveKeys(in);
                         out.println("RECEIVED_OK");
-                        nodeInfo.setPredecessor(new NodeInfo(predId, predIp, predPort));
+
+                        nodeInfo.setPredecessor(
+                                new NodeInfo(clientPredecessorId, clientPredecessorIp, clientPredecessorPort)
+                        ); // set new predecessor
                         break;
-                    case UPDATE_NEIGHBORS:
+                    case UPDATE_SUCCESSOR:
+                        nodeInfo.setSuccessor(new NodeInfo(clientNodeId, clientIp, clientPort));      // set new successor
                         break;
                     default: break;
                 }
@@ -105,8 +110,7 @@ public class NameServer {
 
     /**
      * Send keys to successor when this node leaves.
-     * Initiated by this node.
-     * Successor receives keys using receiveKeys()
+     * Initiated by this node. Send a RECEIVE_KEYS request.
      */
     public void sendKeysOnExit() {
         NodeInfo successor = nodeInfo.getSuccessor();
@@ -122,9 +126,8 @@ public class NameServer {
         {
             int predId = nodeInfo.getPredecessor().getId();
             String predIp;
-            if (predId == 0)
-                predIp = bootstrapIP;
-            predIp = nodeInfo.getPredecessor().getIp();
+            if (predId == 0) predIp = bootstrapIP;
+            else predIp = nodeInfo.getPredecessor().getIp();
             int predPort = nodeInfo.getPredecessor().getPort();
 
             String transferRequest = RECEIVE_KEYS + " " + id + " " + port + " " +
@@ -139,7 +142,7 @@ public class NameServer {
             }
             System.out.println("Sending keys...");
 
-            sendKeys(out, id);                      // Send all keys up to this nameserver id
+            sendKeys(out, id);
 
             message = in.readLine();
             if (message.equals("RECEIVED_OK"))
@@ -151,9 +154,8 @@ public class NameServer {
     }
 
     /**
-     * Receive keys from a successor on entry of this node.
-     * Initiated by this node.
-     * Successor replies using the method: sendKeys()
+     * Function triggered when 'this node' enters the network and wants to receive keys from successor.
+     * Sends a SEND_KEYS request.
      */
     public void receiveKeysOnEntry() {
         NodeInfo successor = nodeInfo.getSuccessor();
@@ -179,9 +181,8 @@ public class NameServer {
     }
 
     /**
-     * Send keys to predecessor when predecessor joins and asks for transfer.
-     * Initiated by predecessor node. (Response)
-     * Predecessor node initiates request with the method: receiveKeysOnEntry()
+     * Helper method to send keys to a 'PrintWrite out' source for 'this' nameservers
+     * Send all the keys possessed by this server (start -> nodeId)
      */
     private Range sendKeys(PrintWriter out, int endKey) {
         Range range = getSendRange(endKey);
@@ -191,8 +192,9 @@ public class NameServer {
     }
 
     /**
-     * Receive keys in this node when a predecessor leaves
-     * Initiated by leaving node. (Predecessor) using method sendKeysOnExit()
+     * Helper method to receive keys using a 'BufferedReader in' source and store in this node
+     * Receives all keys when a predecessor leaves and hands over keys or
+     * When 'this node' enters the network and receives successor's keyspace (start -> this.nodeId)
      */
     private void receiveKeys(BufferedReader in) {
         try {
@@ -226,6 +228,29 @@ public class NameServer {
     private void deleteKeys(Range range) {
         for (int key = range.getStart(); key <= range.getEnd(); key ++)
             keyValueStore.delete(key);
+    }
+
+    /**
+     * Ask predecessor to set this as successor
+     * @param predecessorNode: The predecessor Node of class NodeInfo
+     */
+    public void announceEntryToPredecessor(NodeInfo predecessorNode) {
+        try (Socket socket = new Socket(predecessorNode.getIp(), predecessorNode.getPort());
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())))
+        {
+            System.out.println("Announcing entry to predecessor node");
+            String request = UPDATE_SUCCESSOR + " " + id + " " + port;
+            out.println(request);
+            System.out.println("Announce success");
+        } catch(Exception e) {
+            System.out.println("Error during announcing entry to predecessor key: " + e.getMessage());
+        }
+    }
+
+    public void announceExit() {
+        // Send pred and ask pred to set self as succ
+        // Send succ and ask succ to set self as pred
     }
 
     public NodeInfo getNodeInfo() {
