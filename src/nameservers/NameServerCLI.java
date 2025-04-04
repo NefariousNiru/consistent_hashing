@@ -78,55 +78,55 @@ public class NameServerCLI {
         return true;
     }
 
-    public int exitNetwork() {
+    public boolean exitNetwork() {
         if (!nameServer.isJoined()) {
             System.out.println("Not currently joined the network. No keys to transfer");
-            return 0;
+            return false;
         }
         try(Socket socket = new Socket(bootstrapIP, bootstrapPort)) {
             socket.setSoTimeout(5000);  // Set a timeout of 5 seconds for reading response
             try(PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())))
             {
-                String exitMessage = EXIT + " " + id;
+                String exitMessage = EXIT + " " + id + " " + port;
                 out.println(exitMessage);
                 System.out.println("Sent exit request: " + exitMessage);
 
                 String response = in.readLine();
                 System.out.println("Bootstrap response: " + response);
+                return response.equals(EXIT + " OK");
+//                if (!response.equals("READY_TO_RECEIVE")) {
+//                    System.out.println("Server cannot receive keys. Graceful shutdown aborted.");
+//                    return false;
+//                }
 
-                if (!response.equals("READY_TO_RECEIVE")) {
-                    System.out.println("Server cannot receive keys. Graceful shutdown aborted.");
-                    return -1;
-                }
-
-                int i = 0;
-                while (i < 5) {
-                    // transmit keys
-                    out.println("Key:Value");
-                    i += 1;
-                }
-                out.println("FIN");
-
-                response = in.readLine();
-                System.out.println("Bootstrap response: " + response);
-                if (response.equals("EXIT OK")) {
-                    nameServer.markAsJoinedFalse();
-                    return 0;
-                }
-
-                System.out.println("Server cannot receive keys. Graceful shutdown aborted.");
-                return -1;
+//                int i = 0;
+//                while (i < 5) {
+//                    // transmit keys
+//                    out.println("Key:Value");
+//                    i += 1;
+//                }
+//                out.println("FIN");
+//
+//                response = in.readLine();
+//                System.out.println("Bootstrap response: " + response);
+//                if (response.equals("EXIT OK")) {
+//                    nameServer.markAsJoinedFalse();
+//                    return true;
+//                }
+//
+//                System.out.println("Server cannot receive keys. Graceful shutdown aborted.");
+//                return false;
             } catch(Exception e) {
                 System.out.println("Error exiting network: " + e.getMessage());
-                return -1;
+                return false;
             }
         } catch (java.net.SocketTimeoutException ste) {
             System.out.println("Timed out waiting for bootstrap response.");
-            return -1;
+            return false;
         } catch (Exception e) {
             System.out.println("Error exiting network: " + e.getMessage());
-            return -1;
+            return false;
         }
     }
 
@@ -139,11 +139,12 @@ public class NameServerCLI {
             try {
                 switch (NameServerFunctions.valueOf(input)) {
                     case ENTER:
-                        if(enterNetwork() && nameServer.isJoined())
-                            nameServer.receiveKeys();;
+                        if(enterNetwork())
+                            nameServer.receiveKeysOnEntry();
                         break;
                     case EXIT:
-                        if (exitNetwork() == 0){
+                        if (exitNetwork()){
+                            nameServer.sendKeysOnExit();
                             System.out.println("Exiting NameServer CLI.");
                             System.exit(0);
                         }
@@ -151,6 +152,9 @@ public class NameServerCLI {
                     case PRINT:
                         keyValueStore.print_keys();
                         break;
+                    case NEIGHBOR:
+                        System.out.println("Predecessor :" + nameServer.getNodeInfo().getPredecessor());
+                        System.out.println("Successor :" + nameServer.getNodeInfo().getSuccessor());
                     default: break;
                 }
             } catch (IllegalArgumentException e) {

@@ -2,6 +2,7 @@ package common;
 
 import java.util.Map;
 import java.util.HashMap;
+import java.util.TreeMap;
 
 public class KeyValueStore {
     private final Map<Integer, String> keyValueStore;
@@ -31,7 +32,8 @@ public class KeyValueStore {
     }
 
     public synchronized void print_keys() {
-        for (Map.Entry<Integer, String> entry : keyValueStore.entrySet()) {
+        Map<Integer, String> sortedMap = new TreeMap<>(keyValueStore);
+        for (Map.Entry<Integer, String> entry : sortedMap.entrySet()) {
             System.out.println("Key: " + entry.getKey() + ", Value: " + entry.getValue());
         }
     }

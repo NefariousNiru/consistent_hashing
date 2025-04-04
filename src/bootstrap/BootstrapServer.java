@@ -12,6 +12,8 @@ import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static common.NameServerFunctions.EXIT;
+
 public class BootstrapServer {
     private int port;
     private boolean running;
@@ -76,38 +78,44 @@ public class BootstrapServer {
             int nodeId = Integer.parseInt(tokens[1]);
             int nsPort = Integer.parseInt(tokens[2]);
             String clientIP = clientSocket.getInetAddress().getHostAddress();
-
+            NodeInfo requestNode = new NodeInfo(nodeId, clientIP, nsPort);
+            NodeInfo predNode;
+            NodeInfo succNode;
             try {
                 switch(NameServerFunctions.valueOf(command)) {
                     case ENTER:
                         System.out.println("Processing entry of Node " + nodeId);
-                        NodeInfo newNode = new NodeInfo(nodeId, clientIP, nsPort);
 
-                        if ((response = nodeManger.addNode(newNode)).getCode() == -1) {
+                        if ((response = nodeManger.addNode(requestNode)).getCode() == -1) {
                             out.println(response.getMessage());
                             break;
                         }
 
                         if ((response = rangeManager.addNode(nodeId)).getCode() == -1){
-                            nodeManger.removeNode(newNode);
+                            nodeManger.removeNode(requestNode);
                             out.println(response.getMessage());
                             break;
                         }
 
-                        NodeInfo predNode = newNode.getPredecessor();
-                        NodeInfo succNode = newNode.getSuccessor();
+                        predNode = requestNode.getPredecessor();
+                        succNode = requestNode.getSuccessor();
 
                         out.println("ENTER OK" + " Predecessor: " + predNode.toString() + " Successor: " + succNode.toString());
                         break;
                     case EXIT:
-                        // Additional logic for EXIT (e.g., handle key transfer and range updates)
-                        // Unimplemented rangeManager and transfer keys service
                         System.out.println("Processing exit for node " + nodeId);
-                        if ((response = rangeManager.removeNode(nodeId)).getCode() == -1){
+
+                        if ((response = nodeManger.removeNode(requestNode)).getCode() == -1) {
                             out.println(response.getMessage());
                             break;
                         }
-                        receiveKeys(out, in, nodeId);
+
+                        if ((response = rangeManager.removeNode(nodeId)).getCode() == -1){
+                            nodeManger.addNode(requestNode);
+                            out.println(response.getMessage());
+                            break;
+                        }
+                        out.println(EXIT + " OK");
                         break;
                     case SEND_KEYS:
                         System.out.println("Processing SEND_KEYS for node " + nodeId);

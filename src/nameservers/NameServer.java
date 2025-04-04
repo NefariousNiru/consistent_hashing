@@ -64,7 +64,7 @@ public class NameServer {
                 switch (NameServerFunctions.valueOf(command)) {
                     case SEND_KEYS:
                         System.out.println("Processing SEND_KEYS for node " + nodeId);
-                        Range range = sendKeys(in, out, ip, port, nodeId);
+                        Range range = sendKeys(out, nodeId);
 
                         message = in.readLine();
                         if (message.equals("RECEIVED_OK")){
@@ -72,6 +72,26 @@ public class NameServer {
                         }
 
                         nodeInfo.setPredecessor(new NodeInfo(nodeId, ip, port));    // set new predecessor
+                        break;
+                    case RECEIVE_KEYS:
+                        System.out.println("Receiving keys from predecessor node");
+                        if (tokens.length < 6) {
+                            System.out.println("Invalid Request");
+                            break;
+                        }
+                        out.println("SEND_OK");
+
+                        int predId = Integer.parseInt(tokens[3]);
+                        String predIp = tokens[4];
+                        int predPort = Integer.parseInt(tokens[5]);
+
+                        receiveKeys(in);
+                        out.println("RECEIVED_OK");
+                        nodeInfo.setPredecessor(new NodeInfo(predId, predIp, predPort));
+                        break;
+                    case UPDATE_PREDECESSOR:
+                        break;
+                    case UPDATE_SUCCESSOR:
                         break;
                     default: break;
                 }
@@ -81,20 +101,63 @@ public class NameServer {
         } catch (IOException e) {
             System.out.println("Error handling incoming request: " + e.getMessage());
         } finally {
-            try { clientSocket.close(); } catch (Exception e) { }
+            try { clientSocket.close(); } catch (Exception ignored) { }
         }
     }
 
-    private Range sendKeys(BufferedReader in, PrintWriter out, String ip, int port, int endKey) {
-        // Asked by other servers to send this server's keys when joined.
-        Range range = getSendRange(endKey);
-        System.out.println("Sending keys in range: " + range.getStart() + " to " + endKey);
-        keyTransferService.sendKeyValueRange(out, range);
-        return range;
+    /**
+     * Send keys to successor when this node leaves.
+     * Initiated by this node.
+     * Successor receives keys using receiveKeys()
+     */
+    public void sendKeysOnExit() {
+        NodeInfo successor = nodeInfo.getSuccessor();
+        if (successor == null) {
+            System.out.println("No successor available for sending key.");
+            return;
+        }
+
+        System.out.println("Initiating key sending to successor: " + successor);
+        try (Socket socket = new Socket(successor.getIp(), successor.getPort());
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())))
+        {
+            int predId = nodeInfo.getPredecessor().getId();
+            String predIp;
+            if (predId == 0)
+                predIp = bootstrapIP;
+            predIp = nodeInfo.getPredecessor().getIp();
+            int predPort = nodeInfo.getPredecessor().getPort();
+
+            String transferRequest = RECEIVE_KEYS + " " + id + " " + port + " " +
+                    predId + " " + predIp + " " + predPort;
+            out.println(transferRequest);
+            System.out.println("Sent key sending request: " + transferRequest);
+
+            String message = in.readLine();
+            if (!message.equals("SEND_OK")) {
+                System.out.println("Server not ready to receive keys");
+                return;
+            }
+            System.out.println("Sending keys...");
+
+            sendKeys(out, id);                      // Send all keys up to this nameserver id
+
+            message = in.readLine();
+            if (message.equals("RECEIVED_OK"))
+                System.out.println("Successfully sent all keys");
+            else System.out.println("Failed to send keys");
+        } catch(Exception e) {
+            System.out.println("Error during sending key: " + e.getMessage());
+        }
     }
 
-    public void receiveKeys() {
-        // Ask server to send keys so this name server receives them.
+    /**
+     * Receive keys from a successor on entry of this node.
+     * Initiated by this node.
+     * Successor replies using the method: sendKeys()
+     */
+    public void receiveKeysOnEntry() {
         NodeInfo successor = nodeInfo.getSuccessor();
         if (successor == null) {
             System.out.println("No successor available for key receiving.");
@@ -110,11 +173,37 @@ public class NameServer {
             out.println(transferRequest);
             System.out.println("Sent key retrieval request: " + transferRequest);
 
+            receiveKeys(in);
+            out.println("RECEIVED_OK");
+        } catch(Exception e) {
+            System.out.println("Error during key reception: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Send keys to predecessor when predecessor joins and asks for transfer.
+     * Initiated by predecessor node. (Response)
+     * Predecessor node initiates request with the method: receiveKeysOnEntry()
+     */
+    private Range sendKeys(PrintWriter out, int endKey) {
+        Range range = getSendRange(endKey);
+        System.out.println("Sending keys in range: " + range.getStart() + " to " + endKey);
+        keyTransferService.sendKeyValueRange(out, range);
+        return range;
+    }
+
+    /**
+     * Receive keys in this node when a predecessor leaves
+     * Initiated by leaving node. (Predecessor) using method sendKeysOnExit()
+     */
+    private void receiveKeys(BufferedReader in) {
+        try {
             String received = in.readLine();
             String[] lines = received.split("%0A");
             for (String line : lines) {
                 if (line.trim().isEmpty()) continue;
-                if (line.equals("FIN")) break;  // Receive key-value pairs until we encounter a termination marker ("FIN").
+                if (line.equals("FIN"))
+                    break;  // Receive key-value pairs until we encounter a termination marker ("FIN").
 
                 String[] parts = line.split(":");
                 if (parts.length < 2) {
@@ -131,9 +220,8 @@ public class NameServer {
                     System.out.println("Invalid key format in line: " + line);
                 }
             }
-            out.println("RECEIVED_OK");
-        } catch(Exception e) {
-            System.out.println("Error during key reception: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("Error receiving keys due to I/O Exception: " + e.getMessage());
         }
     }
 
