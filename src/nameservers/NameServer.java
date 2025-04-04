@@ -273,7 +273,6 @@ public class NameServer {
         isJoined = true;
     }
 
-
     public boolean isJoined() {
         return isJoined;
     }
