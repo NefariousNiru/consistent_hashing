@@ -12,7 +12,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.util.Scanner;
 
 public class BootstrapCLI {
@@ -57,8 +56,7 @@ public class BootstrapCLI {
                     System.out.println("Value for key " + key + " is: " + value);
                 } else {
                     value = forwardToSuccessor(ClientFunctions.LOOKUP, Integer.toString(key)); // Forward request to successor
-                    if (value == null || value.equals("null"))
-                        System.out.println("Key " + key + " not found.");
+                    if (value == null || value.equals("null")) System.out.println("Key " + key + " not found.");
                     else System.out.println("Value for key " + key + " is: " + value);
                 }
             } catch (NumberFormatException e) {
@@ -75,17 +73,27 @@ public class BootstrapCLI {
                 int key = Integer.parseInt(tokens[1]);
                 String value = tokens[2];
                 Range range = rangeManager.getRangeForNode(0);
-                if (range.getStart() <= key && key <= range.getEnd()) {
+                boolean inRange;
+                if (range.getStart() <= range.getEnd()) {
+                    // Non-wrapping range: key is valid if it's between start and end
+                    inRange = (key >= range.getStart() && key <= range.getEnd());
+                } else {
+                    // Wrapping range: key is valid if it's >= start OR <= end
+                    inRange = (key >= range.getStart() || key <= range.getEnd());
+                }
+                if (inRange) {
                     int result = keyValueStore.insert(key, value);
-                    if(result == 0) {
+                    if (result == 0) {
                         System.out.println("Insertion successful for key " + key);
                     } else {
                         System.out.println("Key " + key + " already exists.");
                     }
-                }
-                else {
+                } else {
                     String response = forwardToSuccessor(ClientFunctions.INSERT, key + " " + value);
-                    System.out.println(response);
+                    if (response == null || response.equals("null"))
+                        System.out.println("Key " + key + " not inserted");
+                    else
+                        System.out.println(response);
                 }
             } catch (NumberFormatException e) {
                 System.out.println("Invalid key format. Key must be an integer.");
@@ -103,7 +111,9 @@ public class BootstrapCLI {
                 if(result == 0) {
                     System.out.println("Key " + key + " deleted successfully.");
                 } else {
-                    System.out.println("Key " + key + " not found.");
+                    String value = forwardToSuccessor(ClientFunctions.DELETE, Integer.toString(key));
+                    if (value == null || value.equals("null")) System.out.println("Key " + key + " not found.");
+                    else System.out.println(value);
                 }
             } catch (NumberFormatException e) {
                 System.out.println("Invalid key format. Key must be an integer.");
@@ -155,6 +165,7 @@ public class BootstrapCLI {
 
             if(command.equalsIgnoreCase("exit")) {
                 System.out.println("Exiting CLI...");
+                System.exit(0);
                 break;
             }
 

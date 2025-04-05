@@ -1,5 +1,6 @@
 package nameservers;
 
+import bootstrapUtil.ClientFunctions;
 import common.Range;
 import common.KeyTransferService;
 import common.KeyValueStore;
@@ -117,8 +118,36 @@ public class NameServer {
                         out.println(value);                             // return any value successors found
                         break;
                     case INSERT:
+                        key = Integer.parseInt(tokens[3]);
+                        value = tokens[4];
+                        System.out.println("Received Insert Request for Key: " + key + " with Value: " + value);
+                        range = getSendRange(id);
+                        if (range.getStart() <= key && key <= range.getEnd()) {
+                            int result = keyValueStore.insert(key, value);
+                            if(result == 0) {
+                                out.println("Insertion successful for key " + key);
+                            } else {
+                                out.println("Key " + key + " already exists.");
+                            }
+                        }
+                        else {
+                            System.out.println("Key " + key + " not found -> forwarding");
+                            String response = forwardToSuccessor(NameServerFunctions.INSERT, key + " " + value);
+                            out.println(response);
+                        }
                         break;
                     case DELETE:
+                        key = Integer.parseInt(tokens[3]);
+                        System.out.println("Received delete request for key: " + key);
+                        int result = keyValueStore.delete(key);      // check if this name server has it
+                        if (result == 0) {
+                            System.out.println("Key " + key + " found");
+                            out.println("Key " + key + " deleted");                         // If found return key
+                            break;
+                        }
+                        System.out.println("Key " + key + " not found -> forwarding");
+                        value = forwardToSuccessor(LOOKUP, Integer.toString(key));
+                        out.println(value);                             // return any value successors found
                         break;
                     default: break;
                 }
