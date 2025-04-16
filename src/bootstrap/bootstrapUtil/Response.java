@@ -1,4 +1,4 @@
-package bootstrapUtil;
+package bootstrap.bootstrapUtil;
 
 public class Response {
     private final int code;

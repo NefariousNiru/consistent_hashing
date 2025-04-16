@@ -1,6 +1,5 @@
 package nameservers;
 
-import bootstrapUtil.ClientFunctions;
 import common.Range;
 import common.KeyTransferService;
 import common.KeyValueStore;

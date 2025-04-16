@@ -1,4 +1,4 @@
-package bootstrapUtil;
+package bootstrap.bootstrapUtil;
 
 import common.Range;
 

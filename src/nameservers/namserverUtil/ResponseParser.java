@@ -1,4 +1,4 @@
-package namserverUtil;
+package nameservers.namserverUtil;
 
 import common.NodeInfo;
 

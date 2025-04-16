@@ -4,7 +4,7 @@ import common.KeyTransferService;
 import common.KeyValueStore;
 import common.NameServerFunctions;
 import common.NodeInfo;
-import namserverUtil.ResponseParser;
+import nameservers.namserverUtil.ResponseParser;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;

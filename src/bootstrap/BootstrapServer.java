@@ -1,7 +1,7 @@
 package bootstrap;
 
 import common.*;
-import bootstrapUtil.*;
+import bootstrap.bootstrapUtil.*;
 
 import java.io.BufferedReader;
 import java.io.IOException;

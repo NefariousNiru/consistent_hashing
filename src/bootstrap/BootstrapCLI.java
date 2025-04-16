@@ -1,8 +1,8 @@
 package bootstrap;
 
-import bootstrapUtil.ClientFunctions;
-import bootstrapUtil.NodeManager;
-import bootstrapUtil.RangeManager;
+import bootstrap.bootstrapUtil.ClientFunctions;
+import bootstrap.bootstrapUtil.NodeManager;
+import bootstrap.bootstrapUtil.RangeManager;
 import common.KeyValueStore;
 import common.NodeInfo;
 import common.Range;

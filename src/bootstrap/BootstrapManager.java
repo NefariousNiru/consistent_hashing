@@ -1,9 +1,9 @@
 package bootstrap;
 
-import bootstrapUtil.NodeManager;
+import bootstrap.bootstrapUtil.NodeManager;
 import common.KeyTransferService;
 import common.KeyValueStore;
-import bootstrapUtil.RangeManager;
+import bootstrap.bootstrapUtil.RangeManager;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
