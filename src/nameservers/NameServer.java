@@ -131,7 +131,7 @@ public class NameServer {
                         }
                         else {
                             System.out.println("Key " + key + " not found -> forwarding");
-                            String response = forwardToSuccessor(NameServerFunctions.INSERT, key + " " + value);
+                            String response = forwardToSuccessor(INSERT, key + " " + value);
                             out.println(response);
                         }
                         break;
@@ -145,7 +145,7 @@ public class NameServer {
                             break;
                         }
                         System.out.println("Key " + key + " not found -> forwarding");
-                        value = forwardToSuccessor(LOOKUP, Integer.toString(key));
+                        value = forwardToSuccessor(DELETE, Integer.toString(key));
                         out.println(value);                             // return any value successors found
                         break;
                     default: break;
